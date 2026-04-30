@@ -1,0 +1,56 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-sd_alerts}
+      MYSQL_USER: ${DB_USER:-alerts}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: .
+    image: sd-alert-server:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    command: ["npx", "knex", "migrate:latest"]
+    restart: "no"
+
+  app:
+    build: .
+    image: sd-alert-server:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      HOST: 0.0.0.0
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+
+volumes:
+  db_data:

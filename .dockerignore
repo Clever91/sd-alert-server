@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.env
+.env.local
+*.log
+.DS_Store
+.idea
+.vscode
+README.md
+firebase-service-account.json
+*-service-account.json
